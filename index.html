@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart TV Home – CS 6750 Prototype</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#000;overflow:hidden}
+body{font-family:system-ui,"Segoe UI",Roboto,"DejaVu Sans",sans-serif;color:#F2F2F5;font-size:22px;line-height:1.25}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;background:#0E1016;overflow:hidden;user-select:none;-webkit-user-select:none}
+.screen{position:absolute;inset:0;padding:58px 77px;background:radial-gradient(1440px 720px at 80% -10%,#1D2540 0,#0E1016 60%);opacity:0;visibility:hidden;transition:opacity .2s ease,visibility 0s linear .2s}
+.screen.on{opacity:1;visibility:visible;transition:opacity .2s ease}
+.screen.full{padding:0;background:#000}
+#scr-overlay{background:none;z-index:10;transform:scale(.97);transition:opacity .2s ease,transform .2s ease,visibility 0s linear .2s}
+#scr-overlay.on{transform:none;transition:opacity .2s ease,transform .2s ease}
+
+[data-focus]{cursor:pointer}
+.sel{outline:5px solid #fff;outline-offset:4px;transform:scale(1.08);box-shadow:0 18px 40px rgba(0,0,0,.6);z-index:3;position:relative}
+.search.sel{transform:scale(1.015)}
+.svc.sel{outline-offset:3px}
+
+.top{display:flex;align-items:center;gap:22px;margin-bottom:41px}
+.search{flex:1;height:77px;border-radius:39px;background:#1B1F2B;border:2px solid #2B3142;display:flex;align-items:center;padding:0 34px;font-size:26px;color:#8A91A6;gap:17px;white-space:nowrap;overflow:hidden}
+.search.typing{border-color:#4F8CFF;box-shadow:0 0 0 4px rgba(79,140,255,.25);color:#fff}
+.search .ph{color:#8A91A6}
+.caret{display:inline-block;width:2px;height:32px;background:#fff;vertical-align:middle;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.icon{width:77px;height:77px;border-radius:39px;background:#1B1F2B;border:2px solid #2B3142;display:flex;align-items:center;justify-content:center;font-size:18px;color:#C9CFDD;font-weight:bold;flex:none}
+.avatar{width:77px;height:77px;border-radius:39px;background:linear-gradient(135deg,#FF8A5B,#E5487A);display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:26px;flex:none}
+
+.h{font-size:26px;font-weight:bold;margin:0 0 19px;display:flex;align-items:baseline;gap:22px}
+.h .meta{font-size:18px;font-weight:normal;color:#8A91A6}
+.link{display:inline-block;font-size:19px;font-weight:normal;color:#8FB3FF;border:1.5px solid #3A4A75;border-radius:19px;padding:5px 17px;line-height:1.3}
+.link.done{background:#4F8CFF;color:#fff;border-color:#4F8CFF}
+.row{display:flex;gap:26px;margin-bottom:41px}
+.cw{width:396px;height:223px;border-radius:17px;position:relative;overflow:hidden;flex:none}
+.cw .lab{position:absolute;left:0;right:0;bottom:0;padding:17px 19px;background:linear-gradient(transparent,rgba(0,0,0,.85));font-size:23px;font-weight:bold}
+.cw .lab span{display:block;font-size:17px;font-weight:normal;color:#C7CCD8;margin-top:4px}
+.bar{position:absolute;left:0;bottom:0;height:6px;background:#4F8CFF}
+.grid{display:grid;grid-template-columns:repeat(8,1fr);gap:53px 24px}
+.app{height:130px;border-radius:17px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:bold;font-size:24px;position:relative;color:#fff}
+.pin{position:absolute;top:10px;right:12px;font-size:13px;background:rgba(0,0,0,.35);padding:4px 8px;border-radius:10px;letter-spacing:.5px}
+.app .name{display:none;position:absolute;bottom:-41px;left:50%;transform:translateX(-50%);font-size:20px;white-space:nowrap;color:#fff;font-weight:bold}
+.app.sel .name{display:block}
+.app .mv{display:none;font-size:22px;line-height:1;margin-bottom:6px}
+.editgrid .app{opacity:.75}
+.editgrid .app.sel{opacity:1}
+.editgrid .app .name{display:none}
+.app.picked{outline:4px dashed #8FB3FF;outline-offset:4px;transform:scale(1.05);opacity:1;box-shadow:none}
+.app.picked .mv{display:block}
+.hint{position:absolute;bottom:36px;left:0;right:0;text-align:center;font-size:20px;color:#AAB1C4}
+.hint.light{color:#E0E4EE}
+.key{display:inline-block;border:1.5px solid #59607A;border-radius:8px;padding:2px 11px;margin:0 5px;color:#fff;font-size:18px;line-height:1.3}
+.banner{background:#1B2440;border:1.5px solid #3A4A75;border-radius:17px;padding:19px 26px;margin-bottom:34px;font-size:22px}
+
+.srch{display:flex;gap:72px;align-items:flex-start}
+.kb{display:grid;grid-template-columns:repeat(10,74px);gap:12px}
+.k{height:70px;border-radius:12px;background:#1B1F2B;border:1.5px solid #2B3142;display:flex;align-items:center;justify-content:center;font-size:25px}
+.k.wide{grid-column:span 2}
+.k.sel{background:#4F8CFF;border-color:#4F8CFF}
+.note{margin-top:36px;font-size:20px;color:#AAB1C4}
+.svc{width:864px;height:91px;border-radius:17px;background:#1B1F2B;border:2px solid #2B3142;display:flex;align-items:center;justify-content:space-between;padding:0 31px;margin-bottom:19px;font-size:25px}
+.svc.sug{width:744px;height:77px}
+.svc.off{opacity:.45;cursor:default}
+.svc .l{display:flex;align-items:center}
+.dot{width:46px;height:46px;border-radius:12px;display:inline-block;margin-right:19px;flex:none}
+.btn{background:#4F8CFF;color:#fff;border-radius:26px;padding:11px 26px;font-size:22px;font-weight:bold;white-space:nowrap}
+.tag{font-size:18px;color:#7EE2A8;margin-left:14px;font-weight:normal}
+.tag.warn{color:#F3C26B}
+.open{color:#AAB1C4;font-size:22px}
+.req{font-size:20px}
+
+.res{display:flex;gap:67px;align-items:flex-start}
+.poster{width:396px;height:564px;border-radius:22px;flex:none}
+.rtitle{font-size:55px;font-weight:bold;line-height:1.1}
+.rmeta{color:#AAB1C4;font-size:22px;margin:10px 0 41px}
+
+.video{position:absolute;inset:0;background-size:200% 200%;animation:drift 20s ease-in-out infinite alternate}
+@keyframes drift{from{background-position:0% 0%}to{background-position:100% 100%}}
+.wmeta{position:absolute;left:77px;bottom:72px;font-size:34px;font-weight:bold;transition:opacity .6s}
+.wmeta .sub{font-size:22px;font-weight:normal;color:#DDD;margin-top:7px}
+.whint{position:absolute;right:77px;bottom:72px;font-size:22px;color:#EEE;transition:opacity .6s}
+.idle .wmeta,.idle .whint{opacity:0}
+.wbar{position:absolute;left:0;right:0;bottom:0;height:6px;background:rgba(255,255,255,.15)}
+.wfill{height:100%;background:#4F8CFF;width:0}
+.ph-home{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.ph-home .big{font-size:56px;font-weight:bold}
+.ph-home .small{font-size:22px;color:#DDD}
+.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,10,16,.55),rgba(8,10,16,.82))}
+.otitle{position:absolute;top:180px;left:0;right:0;text-align:center;font-size:36px;font-weight:bold}
+.orow{position:absolute;top:300px;left:0;right:0;display:flex;gap:29px;align-items:center;justify-content:center}
+.card{width:312px;height:300px;border-radius:22px;background:rgba(27,31,43,.92);border:2px solid #2F364A;overflow:hidden;flex:none;position:relative}
+.card .art{height:180px}
+.card .t{padding:17px 22px;font-size:24px;font-weight:bold}
+.card .t span{display:block;font-size:18px;font-weight:normal;color:#AAB1C4;margin-top:6px}
+.card .badge{position:absolute;top:14px;left:14px;font-size:16px;font-weight:bold;padding:5px 12px;border-radius:11px}
+.card.keep{width:228px;border:2px dashed #8FB3FF;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:0 12px}
+.card.keep .ki{font-size:48px}
+.card.keep .kt{font-size:24px;font-weight:bold}
+.card.keep .ks{font-size:18px;color:#AAB1C4}
+
+#toast{position:absolute;top:53px;left:50%;transform:translateX(-50%) translateY(-20px);background:rgba(15,18,26,.85);border-radius:29px;padding:14px 31px;font-size:22px;opacity:0;transition:opacity .2s,transform .2s;z-index:50;pointer-events:none;white-space:nowrap}
+#toast.on{opacity:1;transform:translateX(-50%)}
+#modal{position:absolute;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:40}
+#modal.on{display:flex}
+.mbox{background:#1B1F2B;border:2px solid #2B3142;border-radius:22px;padding:40px 48px;display:flex;flex-direction:column;align-items:center;gap:28px;font-size:26px}
+.qrsq{width:240px;height:240px;background:#fff;padding:16px}
+.qrsq i{display:block;width:100%;height:100%;background:repeating-conic-gradient(#000 0 25%,#fff 0 50%) 0 0/26px 26px}
+#legend{position:absolute;right:24px;bottom:16px;background:rgba(15,18,26,.72);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:8px 14px;font-size:15px;color:#AAB1C4;z-index:60;pointer-events:none;white-space:nowrap}
+#legend.hide{display:none}
+#legend.chip{padding:6px 10px}
+#legend b{color:#fff}
+#live{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="screen" id="scr-home"></div>
+  <div class="screen" id="scr-search"></div>
+  <div class="screen" id="scr-results"></div>
+  <div class="screen full" id="scr-watching"></div>
+  <div class="screen full" id="scr-overlay"></div>
+  <div class="screen" id="scr-edit"></div>
+  <div id="modal"></div>
+  <div id="toast"></div>
+  <div id="legend"></div>
+  <div id="live" aria-live="polite"></div>
+</div>
+<script>
+(function(){
+'use strict';
+function titleGrad(t){ let h=0; for(const c of t) h=(h*31+c.charCodeAt(0))>>>0; h%=360; return `135deg,hsl(${h} 45% 62%),hsl(${(h+30)%360} 40% 18%)`; }
+const DATA = {
+  apps: [
+    ['netflix','Netflix','#D62D2D',42,true],
+    ['youtube','YouTube','#E33B3B',38,true],
+    ['hulu','Hulu','#1DB86A',30,true],
+    ['max','Max','#4B2FD6',22],
+    ['disney','Disney+','#123B8F',18],
+    ['prime','Prime Video','#1A98D5',15],
+    ['peacock','Peacock','#2A2A2A',9],
+    ['appletv','Apple TV+','#3A3A3A',8],
+    ['paramount','Paramount+','#1E5EEA',6],
+    ['tubi','Tubi','#F2622E',5],
+    ['pluto','Pluto TV','#1F1F1F',4],
+    ['spotify','Spotify','#1AA34A',4],
+    ['espn','ESPN','#B3121B',3],
+    ['plex','Plex','#D79D16',2],
+    ['crunchyroll','Crunchyroll','#F47521',2],
+    ['twitch','Twitch','#7D4CE6',1],
+  ].map(([id,name,color,usage,pinned])=>({id,name,color,usage,pinned:!!pinned})),
+
+  shows: [
+    {id:'bear',   title:'The Bear',        app:'hulu',    ep:'S2 E4',        progress:62, left:'',            resume:'25:04', kind:'tv',    grad:'135deg,#7A4B2A,#2B1A12'},
+    {id:'hacks',  title:'Hacks',           app:'max',     ep:'S3 E2',        progress:35, left:'12 min left', resume:'18:42', kind:'tv',    grad:'135deg,#D98BB3,#4A2445'},
+    {id:'bluey',  title:'Bluey',           app:'disney',  ep:'S1 E12',       progress:80, left:'4 min left',  resume:'17:36', kind:'tv',    grad:'135deg,#6FC3FF,#2C6AD8'},
+    {id:'pasta',  title:'Weeknight pasta', app:'youtube', ep:'8:14 / 15:02', progress:55, left:'',            resume:'8:14',  kind:'video', grad:'135deg,#F3C26B,#B2552C'},
+    {id:'shogun', title:'Shōgun',          app:'hulu',    ep:'S1 E7',        progress:20, left:'41 min left', resume:'10:15', kind:'tv',    grad:'135deg,#8C1F1F,#1B0D0D'},
+  ],
+  catalog: [
+    {title:'Severance',       meta:'TV series · 2 seasons · Drama',        grad:'135deg,#9FD3E6,#1F3A52', services:[['appletv','sub'],['prime','rent','Rent $2.99/ep'],['netflix','none']]},
+    {title:'Seinfeld',        meta:'TV series · 9 seasons · Comedy',       services:[['netflix','sub']]},
+    {title:'Sex Education',   meta:'TV series · 4 seasons · Comedy drama', services:[['netflix','sub']]},
+    {title:'Selling Sunset',  meta:'TV series · 8 seasons · Reality',      services:[['netflix','sub']]},
+    {title:'The Bear',        meta:'TV series · 3 seasons · Drama',        grad:'135deg,#7A4B2A,#2B1A12', services:[['hulu','sub'],['disney','sub','bundle']]},
+    {title:'Shōgun',          meta:'TV series · 1 season · Drama',         grad:'135deg,#8C1F1F,#1B0D0D', services:[['hulu','sub']]},
+    {title:'Hacks',           meta:'TV series · 3 seasons · Comedy',       grad:'135deg,#D98BB3,#4A2445', services:[['max','sub']]},
+    {title:'Bluey',           meta:'TV series · 3 seasons · Kids',         grad:'135deg,#6FC3FF,#2C6AD8', services:[['disney','sub']]},
+    {title:'Succession',      meta:'TV series · 4 seasons · Drama',        services:[['max','sub'],['prime','buy','Buy $19.99/season']]},
+    {title:'Stranger Things', meta:'TV series · 5 seasons · Sci-fi',       services:[['netflix','sub']]},
+    {title:'Ted Lasso',       meta:'TV series · 3 seasons · Comedy',       services:[['appletv','sub']]},
+    {title:'The Office',      meta:'TV series · 9 seasons · Comedy',       services:[['peacock','sub'],['netflix','none']]},
+  ].map(c=>({...c, grad:c.grad||titleGrad(c.title), services:c.services.map(([app,status,label])=>({app,status,label}))})),
+  popular: ['Severance','Stranger Things','The Bear','Ted Lasso'],
+};
+
+function initialState(){
+  return {
+    screen:'HOME',
+    apps: DATA.apps.map((a,i)=>({...a, pinOrder:a.pinned?i:null})),
+    manualOrder:null,
+    shows: DATA.shows.map(s=>({...s})),
+    current:null,
+    watch:null,
+    homeOrder:null,
+    query:'',
+    result:null,
+    lastFocus:{},
+    picked:null,
+    legend:true,
+    modal:false,
+  };
+}
+let S = initialState();
+const timers = {h:null, idle:null, overlay:null, toast:null, mic:null, tick:null};
+let hActive=false, hHeld=false;
+
+const $ = (sel, root=document) => root.querySelector(sel);
+const app  = id => S.apps.find(a=>a.id===id);
+const show = id => S.shows.find(s=>s.id===id);
+const grad = g => `linear-gradient(${g})`;
+const esc  = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+
+function sortedApps(){
+  const pinned = S.apps.filter(a=>a.pinned).sort((a,b)=>a.pinOrder-b.pinOrder);
+  const un = S.apps.filter(a=>!a.pinned);
+  if (S.manualOrder) un.sort((a,b)=>S.manualOrder.indexOf(a.id)-S.manualOrder.indexOf(b.id));
+  else un.sort((a,b)=>b.usage-a.usage || a.name.localeCompare(b.name));
+  return pinned.concat(un);
+}
+function suggestions(){
+  const q = norm(S.query.trim());
+  if(!q) return DATA.popular.map(t=>DATA.catalog.find(c=>c.title===t));
+  return DATA.catalog.filter(c=>{ const t=norm(c.title); return t.startsWith(q) || t.split(/\s+/).some(w=>w.startsWith(q)); }).slice(0,5);
+}
+function toast(msg, ms=2200){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('on');
+  clearTimeout(timers.toast); timers.toast=setTimeout(()=>t.classList.remove('on'), ms);
+}
+
+const PLACEHOLDER = '<span class="mag">&#9906;</span><span class="ph">Search shows and movies…</span>';
+function topBar(inner, cls=''){
+  return `<div class="top"><div class="avatar">N</div><div class="search ${cls}" data-focus="search" data-name="Search">${inner}</div>`+
+         `<div class="icon" data-focus="mic" data-name="Microphone">MIC</div><div class="icon" data-focus="qr" data-name="QR code">QR</div>`+
+         `<div class="icon" data-focus="gear" data-name="Settings">&#9881;</div></div>`;
+}
+function appTile(a, edit){
+  return `<div class="app${edit&&S.picked===a.id?' picked':''}" data-focus="app:${a.id}" data-name="${esc(a.name)}${a.pinned?', pinned':''}" style="background:${a.color}">`+
+         `${a.pinned?'<span class="pin">PINNED</span>':''}<div class="mv">&larr; &rarr;</div><span>${esc(a.name)}</span><div class="name">${esc(a.name)}</div></div>`;
+}
+function renderHome(){
+  const cw = S.shows.filter(s=>s.kind==='tv').slice(0,4);
+  const order = (S.homeOrder||sortedApps().map(a=>a.id)).map(app);
+  $('#scr-home').innerHTML = topBar(PLACEHOLDER) +
+    `<div class="h">Continue watching</div><div class="row">` +
+    cw.map(s=>`<div class="cw" data-focus="cw:${s.id}" data-name="${esc(s.title)} on ${esc(app(s.app).name)}" style="background:${grad(s.grad)}">`+
+      `<div class="lab">${esc(s.title)}<span>${esc(app(s.app).name)} &middot; ${esc(s.ep)}</span></div><div class="bar" style="width:${Math.round(s.progress)}%"></div></div>`).join('') +
+    `</div><div class="h">Your apps <span class="meta">Sorted by most used</span><span class="link" data-focus="edit" data-name="Edit apps">&#9998; Edit apps</span></div>`+
+    `<div class="grid">${order.map(a=>appTile(a,false)).join('')}</div>` +
+    `<div class="hint"><span class="key">OK</span> open &nbsp;&nbsp; <span class="key">&#9664; &#9654; &#9650; &#9660;</span> move</div>`;
+}
+function renderSearch(){
+  const sug = suggestions(), q = S.query;
+  const field = `<span class="mag">&#9906;</span>${q?`<span class="q">${esc(q)}</span>`:''}<span class="caret"></span>${q?'':'<span class="ph">Search shows and movies…</span>'}`;
+  const keys = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(c=>`<div class="k" data-focus="key:${c}" data-name="${c}">${c}</div>`).join('') +
+    `<div class="k wide" data-focus="key:BS" data-name="Backspace">&#9003;</div><div class="k wide" data-focus="key:SP" data-name="Space">Space</div>`;
+  $('#scr-search').innerHTML = topBar(field,'typing') +
+    `<div class="srch"><div><div class="h">Type with the remote</div><div class="kb">${keys}</div>`+
+    `<div class="note">Or press <span class="key">MIC</span> and say a title, or <span class="key">QR</span> to type on your phone</div></div>` +
+    `<div><div class="h">Suggestions</div>${sug.map(c=>`<div class="svc sug" data-focus="sug:${esc(c.title)}" data-name="${esc(c.title)}">${esc(c.title)}</div>`).join('') || '<div class="note" style="margin-top:0">No matches</div>'}</div></div>`;
+}
+function renderResults(){
+  const c = S.result, rank={sub:0,rent:1,buy:1,none:2};
+  const rows = [...c.services].sort((a,b)=>rank[a.status]-rank[b.status]).map(sv=>{
+    const a=app(sv.app), dot=`<span class="dot" style="background:${a.color}"></span>`;
+    if(sv.status==='sub') return `<div class="svc" data-focus="svc:${a.id}" data-name="${esc(a.name)}, subscribed, play"><span class="l">${dot}${esc(a.name)}<span class="tag">&#10003; Subscribed${sv.label?' ('+esc(sv.label)+')':''}</span></span><span class="btn">&#9654; ${c.kind==='movie'?'Play':'Play S1 E1'}</span></div>`;
+    if(sv.status==='none') return `<div class="svc off"><span class="l">${dot}${esc(a.name)}</span><span class="req">Requires subscription</span></div>`;
+    return `<div class="svc" data-focus="svc:${a.id}" data-name="${esc(a.name)}, ${esc(sv.label)}"><span class="l">${dot}${esc(a.name)}<span class="tag warn">${esc(sv.label)}</span></span><span class="open">Open</span></div>`;
+  }).join('');
+  $('#scr-results').innerHTML = topBar(`<span class="mag">&#9906;</span><span>${esc(c.title.toLowerCase())}</span>`) +
+    `<div class="res"><div class="poster" style="background:${grad(c.grad)}"></div><div><div class="rtitle">${esc(c.title)}</div><div class="rmeta">${esc(c.meta)}</div><div class="h">Where to watch</div>${rows}</div></div>`;
+}
+function renderWatching(){
+  const el=$('#scr-watching'); el.classList.remove('idle');
+  const hint = `<div class="whint">Hold <span class="key">HOME</span> to switch apps</div>`;
+  if(S.current.showId){
+    const s=show(S.current.showId), a=app(s.app);
+    el.innerHTML = `<div class="video" style="background-image:${grad(s.grad)}"></div><div class="wmeta">${esc(s.title)}<div class="sub">${esc(a.name)} &middot; ${esc(s.ep)}</div></div>${hint}<div class="wbar"><div class="wfill" style="width:${s.progress}%"></div></div>`;
+  } else {
+    const a=app(S.current.appId);
+    el.innerHTML = `<div class="video" style="background-image:linear-gradient(135deg,${a.color},#0E1016)"></div><div class="ph-home"><div class="big">Home of ${esc(a.name)}</div><div class="small">Press <span class="key">BACK</span> to return</div></div>${hint}`;
+  }
+}
+function renderOverlay(){
+  const cur=S.current, curTitle = cur.showId ? show(cur.showId).title : 'Home of '+app(cur.appId).name;
+  const rec = S.shows.filter(s=>s.id!==cur.showId).slice(0,4);
+  $('#scr-overlay').innerHTML = `<div class="scrim"></div><div class="otitle">Switch to&hellip;</div><div class="orow">` +
+    `<div class="card keep" data-focus="keep" data-name="Keep watching ${esc(curTitle)}"><div class="ki">&#8617;</div><div class="kt">Keep watching</div><div class="ks">${esc(curTitle)}</div></div>` +
+    rec.map(s=>{ const a=app(s.app); return `<div class="card" data-focus="rec:${s.id}" data-name="${esc(s.title)} on ${esc(a.name)}"><div class="art" style="background:${grad(s.grad)}"></div><span class="badge" style="background:${a.color}">${esc(a.name)}</span><div class="t">${esc(s.title)}<span>${esc(s.ep)}${s.left?' &middot; '+esc(s.left):''}</span></div></div>`; }).join('') +
+    `</div><div class="hint light"><span class="key">&#9664; &#9654;</span> choose &nbsp;&nbsp; <span class="key">OK</span> switch &nbsp;&nbsp; <span class="key">BACK</span> keep watching</div>`;
+}
+function renderEdit(){
+  $('#scr-edit').innerHTML = topBar(PLACEHOLDER) +
+    `<div class="banner"><b>Editing apps.</b> <span class="key">&#9664; &#9654; &#9650; &#9660;</span> move &nbsp; <span class="key">OK</span> pick up / drop &nbsp; <span class="key">P</span> pin / unpin &nbsp; Pinned apps stay in front; the rest sort by use.</div>` +
+    `<div class="h">Your apps <span class="meta">Sorted by most used</span><span class="link done" data-focus="done" data-name="Done">Done</span></div>`+
+    `<div class="grid editgrid">${sortedApps().map(a=>appTile(a,true)).join('')}</div>`;
+}
+function updateLegend(){
+  const L=$('#legend'), collapsed = S.modal || S.screen==='OVERLAY';
+  L.classList.toggle('hide', !S.legend); L.classList.toggle('chip', collapsed);
+  L.innerHTML = collapsed ? '<b>?</b> controls' : 'Arrows: move · Enter: OK · Esc: Back · H: Home · Hold H / Shift+H: switch apps · /: search · R: reset';
+}
+function fit(){
+  const s=Math.min(innerWidth/1920, innerHeight/1080), st=$('#stage');
+  st.style.transform=`scale(${s})`; st.style.left=((innerWidth-1920*s)/2)+'px'; st.style.top=((innerHeight-1080*s)/2)+'px';
+}
+
+function layer(){ return S.modal ? $('#modal') : $('#scr-'+S.screen.toLowerCase()); }
+function focusables(){ return [...layer().querySelectorAll('[data-focus]')]; }
+function focused(){ return layer().querySelector('.sel'); }
+function setFocus(el){
+  if(!el) return;
+  const prev=focused(); if(prev===el) return; if(prev) prev.classList.remove('sel');
+  el.classList.add('sel');
+  if(!S.modal) S.lastFocus[S.screen]=el.dataset.focus;
+  $('#live').textContent = el.dataset.name || el.textContent.trim();
+}
+function focusFid(fid){ const el=layer().querySelector(`[data-focus="${CSS.escape(fid)}"]`); if(el) setFocus(el); return !!el; }
+function restoreFocus(preferred, fallbackEl){
+  if(preferred && focusFid(preferred)) return;
+  const last=S.lastFocus[S.screen]; if(last && focusFid(last)) return;
+  setFocus(fallbackEl || focusables()[0]);
+}
+function navigate(dir){
+  const cur=focused(), list=focusables().filter(e=>e!==cur);
+  if(!cur){ if(list[0]) setFocus(list[0]); return; }
+  const r=cur.getBoundingClientRect(), cx=(r.left+r.right)/2, cy=(r.top+r.bottom)/2, horiz=(dir==='left'||dir==='right');
+  const cands=[];
+  for(const el of list){
+    const b=el.getBoundingClientRect(), bx=(b.left+b.right)/2, by=(b.top+b.bottom)/2;
+    let primary;
+    if(dir==='left'){ if(bx>=cx-1) continue; primary=r.left-b.right; }
+    else if(dir==='right'){ if(bx<=cx+1) continue; primary=b.left-r.right; }
+    else if(dir==='up'){ if(by>=cy-1) continue; primary=r.top-b.bottom; }
+    else { if(by<=cy+1) continue; primary=b.top-r.bottom; }
+    primary=Math.max(0,primary);
+    const cross = horiz ? Math.abs(by-cy) : Math.abs(bx-cx);
+    const overlap = horiz ? (b.top<r.bottom && b.bottom>r.top) : (b.left<r.right && b.right>r.left);
+    cands.push({el, score:primary+2*cross, overlap});
+  }
+  if(!cands.length) return;
+  const pool = cands.some(c=>c.overlap) ? cands.filter(c=>c.overlap) : cands;
+  pool.sort((a,b)=>a.score-b.score);
+  setFocus(pool[0].el);
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  const k=e.key;
+  if(k==='Tab'){ e.preventDefault(); return; }
+  if(S.modal){
+    if(k==='Enter'||k==='Escape'||k==='Backspace'){ e.preventDefault(); closeModal(); }
+    else if(k==='?'){ toggleLegend(); }
+    return;
+  }
+  wake();
+  if(k==='?'){ e.preventDefault(); toggleLegend(); return; }
+  const dir={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'}[k];
+  if(dir){ e.preventDefault(); if(S.screen==='EDIT'&&S.picked) moveTile(dir); else navigate(dir); return; }
+  if(k==='Enter'){ e.preventDefault(); activate(); return; }
+  if(k==='Escape'){ e.preventDefault(); back(); return; }
+  if(k==='Backspace'){ e.preventDefault(); if(S.screen==='SEARCH'&&S.query) typeBackspace(); else back(); return; }
+  if(S.screen==='SEARCH'){ if(/^[a-zA-Z ]$/.test(k)){ e.preventDefault(); typeChar(k.toLowerCase()); } return; }
+  const low=k.toLowerCase();
+  if(low==='h'){ e.preventDefault(); if(e.shiftKey) hShift(); else if(!e.repeat) hDown(); return; }
+  if(low==='r'){ e.preventDefault(); reset(); return; }
+  if(k==='/'){ e.preventDefault(); slash(); return; }
+  if(low==='p'&&S.screen==='EDIT'){ e.preventDefault(); togglePin(); return; }
+});
+document.addEventListener('keyup', e=>{ if(e.key.toLowerCase()==='h') hUp(); });
+window.addEventListener('blur', ()=>{ clearTimeout(timers.h); hActive=false; hHeld=false; });
+
+function hDown(){ if(hActive) return; hActive=true; hHeld=false; timers.h=setTimeout(()=>{ hHeld=true; if(S.screen==='WATCHING') openOverlay(); },400); }
+function hUp(){ if(!hActive) return; hActive=false; clearTimeout(timers.h); if(!hHeld) homePress(); hHeld=false; }
+function hShift(){ if(S.screen==='WATCHING') openOverlay(); else if(S.screen!=='OVERLAY') homePress(); }
+function homePress(){ if(S.screen==='HOME') return; go('HOME'); }
+function slash(){ if(S.screen==='HOME') focusFid('search'); else go('HOME',{focus:'search'}); }
+function toggleLegend(){ S.legend=!S.legend; updateLegend(); }
+function wake(){
+  if(S.screen==='WATCHING'){ $('#scr-watching').classList.remove('idle'); startIdle(); }
+  else if(S.screen==='OVERLAY'){ armOverlayTimer(); }
+}
+
+const stage=$('#stage'); let mouseX=-1, mouseY=-1;
+stage.addEventListener('mouseover', e=>{
+  if(e.clientX===mouseX && e.clientY===mouseY) return;
+  const el=e.target.closest('[data-focus]'); if(el && layer().contains(el)) setFocus(el);
+});
+stage.addEventListener('mousemove', e=>{ mouseX=e.clientX; mouseY=e.clientY; wake(); });
+stage.addEventListener('click', e=>{
+  if(S.modal && e.target===$('#modal')){ closeModal(); return; }
+  const el=e.target.closest('[data-focus]'); if(el && layer().contains(el)){ setFocus(el); activate(); }
+});
+
+function go(screen, opts={}){
+  const prev=S.screen;
+  if(prev==='WATCHING'||prev==='OVERLAY') leaveWatching();
+  clearInterval(timers.mic); timers.mic=null;
+  S.picked=null; S.screen=screen;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  let fallback=null;
+  switch(screen){
+    case 'HOME':    S.homeOrder=sortedApps().map(a=>a.id); renderHome(); fallback='.cw'; break;
+    case 'SEARCH':  renderSearch(); fallback = S.query ? '.sug' : '[data-focus="key:A"]'; break;
+    case 'RESULTS': renderResults(); fallback='.svc[data-focus]'; break;
+    case 'WATCHING':renderWatching(); break;
+    case 'EDIT':    renderEdit(); fallback='.app'; break;
+  }
+  $('#scr-'+screen.toLowerCase()).classList.add('on');
+  if(screen==='RESULTS'||screen==='SEARCH') setFocus(layer().querySelector(fallback) || layer().querySelector('[data-focus="key:A"]'));
+  else if(fallback) restoreFocus(opts.focus, layer().querySelector(fallback) || layer().querySelector('[data-focus="key:A"]'));
+  updateLegend();
+}
+function back(){
+  switch(S.screen){
+    case 'SEARCH':   if(S.query){ S.query=''; refreshSearch(); } else go('HOME',{focus:'search'}); break;
+    case 'RESULTS':  go('SEARCH'); break;
+    case 'WATCHING': go('HOME'); break;
+    case 'OVERLAY':  closeOverlay(); break;
+    case 'EDIT':     if(S.picked){ S.picked=null; renderEdit(); restoreFocus(); } else go('HOME'); break;
+  }
+}
+function activate(){
+  const el=focused(); if(!el) return; const fid=el.dataset.focus;
+  if(S.modal){ closeModal(); return; }
+  if(fid==='mic'){ micDemo(); return; }
+  if(fid==='qr'){ openModal(); return; }
+  if(fid==='gear'){ toast('Settings are out of scope for this prototype'); return; }
+  if(fid==='search'){ if(S.screen==='SEARCH'){ const s=suggestions(); if(S.query&&s.length) openResults(s[0]); } else { S.query=''; go('SEARCH'); } return; }
+  const i=fid.indexOf(':'), kind=i<0?fid:fid.slice(0,i), id=i<0?null:fid.slice(i+1);
+  switch(S.screen){
+    case 'HOME':
+      if(kind==='cw') startWatching(id); else if(kind==='app') launchApp(id); else if(kind==='edit') go('EDIT'); break;
+    case 'SEARCH':
+      if(kind==='key'){ if(id==='BS') typeBackspace(); else if(id==='SP') typeChar(' '); else typeChar(id.toLowerCase()); }
+      else if(kind==='sug'){ const c=DATA.catalog.find(c=>c.title===id); if(c) openResults(c); }
+      break;
+    case 'RESULTS':
+      if(kind==='svc'){ const sv=S.result.services.find(s=>s.app===id); if(sv.status==='sub') playFromResults(id); else toast(`Opens the store page in ${app(id).name} (demo)`); }
+      break;
+    case 'OVERLAY':
+      if(kind==='keep') closeOverlay(); else if(kind==='rec') switchTo(id); break;
+    case 'EDIT':
+      if(fid==='done') go('HOME');
+      else if(kind==='app'){ S.picked = (S.picked===id)?null:id; renderEdit(); focusFid(fid); }
+      break;
+  }
+}
+
+function refreshSearch(){ renderSearch(); restoreFocus(null, layer().querySelector(S.query?'.sug':'[data-focus="key:A"]') || layer().querySelector('[data-focus="key:A"]')); }
+function typeChar(c){ S.query+=c; refreshSearch(); }
+function typeBackspace(){ S.query=S.query.slice(0,-1); refreshSearch(); }
+function openResults(c){ S.result=c; go('RESULTS'); }
+function micDemo(){
+  if(S.screen!=='SEARCH') go('SEARCH');
+  S.query=''; renderSearch(); restoreFocus(null, layer().querySelector('[data-focus="key:A"]'));
+  toast('Listening… (demo)', 1800);
+  const word='severance'; let i=0; clearInterval(timers.mic);
+  timers.mic=setInterval(()=>{
+    if(S.screen!=='SEARCH'){ clearInterval(timers.mic); timers.mic=null; return; }
+    S.query+=word[i++]; refreshSearch();
+    if(i>=word.length){ clearInterval(timers.mic); timers.mic=null; focusFid('sug:Severance'); }
+  },120);
+}
+function playFromResults(appId){
+  const c=S.result;
+  let s=S.shows.find(x=>x.title===c.title && x.app===appId);
+  if(!s){ s={id:'c:'+c.title.toLowerCase().replace(/[^a-z0-9]+/g,'-')+':'+appId, title:c.title, app:appId, ep:'S1 E1', progress:0, left:'', resume:'00:00', kind:'tv', grad:c.grad}; S.shows.push(s); }
+  startWatching(s.id);
+}
+
+function currentProgress(){ return Math.min(100, S.watch.base + (performance.now()-S.watch.t0)/1000*0.1); }
+function startWatching(showId, opts={}){
+  if(S.screen==='WATCHING'||S.screen==='OVERLAY') leaveWatching();
+  const s=show(showId);
+  S.shows=[s, ...S.shows.filter(x=>x!==s)];
+  app(s.app).usage++;
+  S.current={showId:s.id}; S.watch={base:s.progress, t0:performance.now()};
+  go('WATCHING');
+  if(opts.fromSwitch) toast(`Now playing on ${app(s.app).name} · resumed at ${s.resume}`, 3000);
+  startIdle();
+}
+function launchApp(id){
+  const s=S.shows.find(x=>x.app===id);
+  if(s){ startWatching(s.id); return; }
+  app(id).usage++; S.current={appId:id}; S.watch=null; go('WATCHING'); startIdle();
+}
+function leaveWatching(){
+  if(S.current && S.current.showId && S.watch) show(S.current.showId).progress=currentProgress();
+  S.watch=null; clearTimeout(timers.idle); clearTimeout(timers.overlay);
+  $('#scr-overlay').classList.remove('on');
+}
+function startIdle(){ clearTimeout(timers.idle); timers.idle=setTimeout(()=>{ if(S.screen==='WATCHING') $('#scr-watching').classList.add('idle'); },4000); }
+function openOverlay(){
+  if(S.screen!=='WATCHING') return;
+  S.screen='OVERLAY'; renderOverlay();
+  clearTimeout(timers.idle); $('#scr-watching').classList.add('idle');
+  $('#scr-overlay').classList.add('on');
+  setFocus(layer().querySelector('[data-focus^="rec:"]') || layer().querySelector('[data-focus="keep"]'));
+  armOverlayTimer(); updateLegend();
+}
+function armOverlayTimer(){ clearTimeout(timers.overlay); timers.overlay=setTimeout(closeOverlay,10000); }
+function closeOverlay(){
+  if(S.screen!=='OVERLAY') return;
+  clearTimeout(timers.overlay); $('#scr-overlay').classList.remove('on');
+  S.screen='WATCHING'; $('#scr-watching').classList.remove('idle'); startIdle(); updateLegend();
+}
+function switchTo(id){ clearTimeout(timers.overlay); startWatching(id,{fromSwitch:true}); }
+timers.tick=setInterval(()=>{
+  if((S.screen==='WATCHING'||S.screen==='OVERLAY') && S.watch){ const f=$('#scr-watching .wfill'); if(f) f.style.width=currentProgress()+'%'; }
+},250);
+
+function moveTile(dir){
+  const ids=sortedApps().map(a=>a.id), i=ids.indexOf(S.picked), a=app(S.picked);
+  const j=i+{left:-1,right:1,up:-8,down:8}[dir];
+  if(j<0||j>=ids.length) return;
+  const nPinned=S.apps.filter(x=>x.pinned).length;
+  if((i<nPinned)!==(j<nPinned)){ toast('Pinned apps stay in front'); return; }
+  [ids[i],ids[j]]=[ids[j],ids[i]];
+  if(a.pinned) ids.slice(0,nPinned).forEach((id,k)=>app(id).pinOrder=k);
+  else S.manualOrder=ids.slice(nPinned);
+  renderEdit(); focusFid('app:'+S.picked);
+}
+function togglePin(){
+  const el=focused(); if(!el||!el.dataset.focus.startsWith('app:')) return;
+  const id=el.dataset.focus.slice(4), a=app(id);
+  if(a.pinned){ a.pinned=false; a.pinOrder=null; }
+  else {
+    const pinned=S.apps.filter(x=>x.pinned);
+    if(pinned.length>=3){ toast('Up to 3 apps can be pinned'); return; }
+    a.pinned=true; a.pinOrder=Math.max(-1,...pinned.map(x=>x.pinOrder))+1;
+  }
+  renderEdit(); focusFid('app:'+id);
+}
+
+function openModal(){
+  S.modal=true;
+  $('#modal').innerHTML=`<div class="mbox"><div>Scan to type on your phone (demo)</div><div class="qrsq"><i></i></div><div class="btn" data-focus="close" data-name="Close">Close</div></div>`;
+  $('#modal').classList.add('on'); setFocus($('#modal [data-focus]')); updateLegend();
+}
+function closeModal(){ S.modal=false; $('#modal').classList.remove('on'); updateLegend(); }
+function reset(){
+  ['h','idle','overlay','toast','mic'].forEach(k=>{ clearTimeout(timers[k]); clearInterval(timers[k]); timers[k]=null; });
+  hActive=false; hHeld=false;
+  const legend=S.legend; S=initialState(); S.legend=legend;
+  $('#modal').classList.remove('on'); $('#toast').classList.remove('on'); $('#scr-overlay').classList.remove('on');
+  go('HOME'); toast('Prototype reset', 1200);
+}
+
+fit(); window.addEventListener('resize', fit);
+go('HOME');
+window.TV = { get state(){ return S; }, focused: ()=>{ const f=focused(); return f?f.dataset.focus:null; } };
+})();
+</script>
+</body>
+</html>
