@@ -2,6 +2,8 @@
 
 Medium-fidelity interactive prototype of a redesigned smart-TV home screen, built for CS 6750 (Human-Computer Interaction) at Georgia Tech.
 
+**Live demo:** https://copper-kernel.github.io/cs6750-tv-prototype/
+
 The design combines three ideas that came out of the project's user research:
 
 - **Search on the home screen.** Results show which services carry a title, subscribed services first, and open the show directly.
